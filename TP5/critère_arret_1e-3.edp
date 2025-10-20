@@ -1,0 +1,63 @@
+// Simple adaptation test (rotating hill problem)
+
+int kt = 6;
+int kloop = 5;
+int nbadap = 60;        // max number of adaptations
+bool inq = 0;
+real tol = 0.05;        // mesh refinement tolerance
+real tol2 = 1e-3;       // stopping criterion
+real errl20 = 1;        // normalization of L2 error
+
+// Domain: unit disk
+border a(t = 0, 2*pi) { x = cos(t); y = sin(t); };
+mesh th = buildmesh(a(70));
+fespace Vh(th, P1);
+
+// Fields
+Vh u1 = y, u2 = -x;
+Vh m11 = 0, m22 = 0, m12 = 0;
+Vh vT;
+int i;
+Vh vv, vo, vp;
+
+// Hill function
+func rhill = sqrt((x - 0.3)^2 + (y - 0.3)^2);
+func hill  = 1 - tanh(30 * (rhill - 0.2));
+Vh v = hill;
+
+plot(v, wait = 1);
+vp = 0;
+
+// Output file
+ofstream file("convergence.txt");
+file.precision(14);
+
+// Adaptation loop
+for (int i = 0; i < nbadap; i++)
+{
+    // Adapt mesh
+    th = adaptmesh(th, v, err = tol, hmax = 0.5, hmin = 0.01, inquire = inq);
+    v = hill;
+
+    // Compute L2 error
+    real errl2 = sqrt(int2d(th)(square(vp - v)));
+
+    // Save and print
+    if (i == 0) { errl20 = errl2; }
+    file << errl2 / errl20 << endl;
+
+    vp = vp - v;
+    cout << "iteration adp = " << i << "  err l2 = " << errl2
+         << " diff min = " << vp[].min << " max = " << vp[].max << endl
+         << "---------------" << endl;
+    vp = v;
+
+    // Stopping condition
+    if (errl2 < tol2)
+    {
+        cout << "Stopping criterion reached: L2 error = " << errl2 << endl;
+        break;
+    }
+
+    plot(th, v, wait = 1);
+}
